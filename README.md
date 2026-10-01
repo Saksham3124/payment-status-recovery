@@ -1,172 +1,463 @@
-# Payment Status Recovery: UPI Transaction Uncertainty Engine
+# Payment Status Recovery — UPI Transaction Uncertainty Engine
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.1.7-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Vitest-3.0.5-green?style=flat&logo=vitest)](https://vitest.dev/)
-[![Tests](https://img.shields.io/badge/Tests-88%20Passed-success)](https://github.com/Saksham3124/payment-status-recovery)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat\&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat\&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat\&logo=tailwind-css)](https://tailwindcss.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-3-green?style=flat\&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-88%20Passing-success?style=flat)](https://github.com/Saksham3124/payment-status-recovery)
 
-A **Product Management Portfolio Case Study & Working Technical Prototype** modeling real-time payment status recovery, multi-party telemetry reconciliation, and accidental double-debit prevention in the Unified Payments Interface (UPI).
+**A Product Management case study and interactive prototype for handling uncertain UPI payment outcomes, preventing unsafe retries, and guiding users toward the next appropriate action.**
 
----
+[View Repository](https://github.com/Saksham3124/payment-status-recovery) · [Report an Issue](https://github.com/Saksham3124/payment-status-recovery/issues)
 
-## 🎯 Executive Summary & The Problem Space
-
-In real-time payment ecosystems like UPI, asynchronous multi-party clearing rails (Remitter Bank &rarr; NPCI Central Switch &rarr; Beneficiary Bank &rarr; Merchant POS) occasionally desynchronize during peak loads, switch maintenance, or network packet drops.
-
-### The Cardinal UX Hazard: The "Debited But Pending" Dilemma
-When an Indian consumer or merchant encounters a payment in an indeterminate state:
-1. **Debit Confirmation Received:** The customer receives a bank SMS stating account debit.
-2. **Merchant Terminal Failure:** The merchant POS or counterparty app displays *"Payment Pending"* or *"Transaction Failed"*.
-3. **Instinctive Retry Impulse:** Anxious about paying the bill or merchant goods, the user attempts an immediate retry.
-4. **Catastrophic Outcome (Double Debit):** The original in-flight payment eventually clears, resulting in a dual deduction.
-
-**Payment Status Recovery** solves this with a **deterministic, table-driven rules engine** that ingests multi-source telemetry and enforces a cardinal safety invariant:
-
-> **The Cardinal Retry Invariant:** Payment retry is strictly blocked (`safeToRetryPayment === false`) whenever debit status is confirmed or uncertain. A retry directive is authorized **only** when definitive evidence proves total switch failure and zero account debit.
+> **Demo disclaimer:** This project uses synthetic transaction data and simulated banking signals. It is not connected to UPI, NPCI, banks, or live payment infrastructure.
 
 ---
 
-## 🏛️ System Architecture
+## Table of Contents
 
-The codebase cleanly decouples banking business logic and safety rules from UI rendering:
+* [Overview](#overview)
+* [The Problem](#the-problem)
+* [Product Approach](#product-approach)
+* [Product Screenshots](#product-screenshots)
+* [How the Recovery Engine Works](#how-the-recovery-engine-works)
+* [System Architecture](#system-architecture)
+* [Product Analytics](#product-analytics)
+* [Support Case Management](#support-case-management)
+* [Regulatory Context](#regulatory-context)
+* [Tech Stack](#tech-stack)
+* [Testing and Safety](#testing-and-safety)
+* [Getting Started](#getting-started)
+* [Limitations and Scope](#limitations-and-scope)
+* [Potential Next Steps](#potential-next-steps)
+* [Author](#author)
 
-```
+---
+
+## Overview
+
+Payment Status Recovery explores a common problem in real-time payment experiences: a transaction can appear unresolved even when different participants have received different status signals.
+
+A customer may see a debit in their bank account while the merchant sees a pending or failed payment. Without a clear explanation of what is known and what remains uncertain, the customer may retry prematurely or contact support without sufficient context.
+
+This prototype models a safer recovery experience through:
+
+* A deterministic, table-driven transaction recovery engine.
+* Simulated evidence from multiple payment participants.
+* Explicit retry-safety decisions.
+* Contextual recovery guidance and transaction timelines.
+* A support-case lifecycle with validated status transitions.
+* Session-level product analytics and privacy-conscious event instrumentation.
+
+**Product objective:** Help users understand an uncertain payment state and identify an appropriate next step without encouraging an unsafe retry.
+
+## The Problem
+
+### The “Debited but Pending” dilemma
+
+Consider a customer paying a merchant through UPI:
+
+1. The customer's bank reports that the account has been debited.
+2. The merchant's application still shows a pending or failed transaction.
+3. The customer cannot tell whether the payment succeeded.
+4. The customer may attempt the payment again.
+5. If the original payment subsequently completes, the customer may face a duplicate payment or a more complicated reconciliation process.
+
+The underlying challenge is not simply displaying a transaction status. It is determining what the available evidence supports and communicating uncertainty responsibly.
+
+### Product questions
+
+This case study explores four questions:
+
+* How should the interface communicate conflicting payment signals?
+* Under what conditions, if any, should a retry be permitted?
+* What information should be shown before a user contacts support?
+* How can product teams measure recovery journeys without treating incomplete flows as failed conversions?
+
+---
+
+## Product Approach
+
+The prototype is organized around four capabilities.
+
+| Capability            | Product purpose                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Transaction recovery  | Consolidate simulated payment signals into a canonical status and recommended action.                |
+| Evidence transparency | Explain what each participant reports and where uncertainty remains.                                 |
+| Support workflows     | Allow users to create and track support cases linked to synthetic transactions.                      |
+| Product analytics     | Inspect session events and support-case funnel activity without logging configured sensitive fields. |
+
+### Core design principle
+
+**Uncertainty should not be presented as proof of failure.**
+
+When evidence is missing, delayed, malformed, or contradictory, the engine uses a conservative safe-hold outcome rather than authorizing a retry.
+
+This is a prototype-level safety policy, not a claim that the application can independently establish the actual state of a live bank transaction.
+
+---
+
+## Product Screenshots
+
+Replace these image paths with actual screenshots captured from the running application. Store the images in `docs/screenshots/`.
+
+### 1. Transactions Dashboard
+
+The transaction overview, status indicators, filters, and synthetic ledger.
+
+![Transactions Dashboard](docs/screenshots/transactions-dashboard.png)
+
+### 2. Transaction Recovery and Evidence
+
+The multi-party evidence breakdown, canonical recovery state, and recommended next action.
+
+![Transaction Recovery](docs/screenshots/transaction-recovery.png)
+
+### 3. Support Case Management
+
+The support-case listing, case status, and case activity history.
+
+![Support Case Management](docs/screenshots/support-cases.png)
+
+### 4. Product Analytics
+
+Session-level event telemetry, recovery funnel metrics, and event inspection.
+
+![Product Analytics](docs/screenshots/product-analytics.png)
+
+*All screenshots should use synthetic demo records. No real payment information should be included.*
+
+---
+
+## How the Recovery Engine Works
+
+The recovery engine is implemented in pure TypeScript and separated from UI rendering.
+
+It evaluates simulated signals from four participants:
+
+| Participant      | Example evidence                               |
+| ---------------- | ---------------------------------------------- |
+| Remitter bank    | Debited, not debited, or debit unknown         |
+| NPCI switch      | Success, failure, pending, or unreachable      |
+| Beneficiary bank | Credited, failed, pending, or unknown          |
+| Merchant POS     | Confirmed, pending, unknown, or not applicable |
+
+These signals are reconciled into a canonical recovery state and corresponding guidance.
+
+### Canonical recovery states
+
+The following table summarizes the states modeled by the project.
+
+| State                         | Retry permitted?            | Guidance                                                               |
+| ----------------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| `DEFINITIVE_SUCCESS`          | No                          | Treat the transaction as completed.                                    |
+| `CREDITED_MERCHANT_SYNC_LAG`  | No                          | Do not retry while merchant confirmation is delayed.                   |
+| `IN_FLIGHT_SWITCH_ACCEPTED`   | No                          | Wait for the accepted transaction to resolve.                          |
+| `IN_FLIGHT_REMITTER_DEBITED`  | No                          | Do not retry while the debit is confirmed and resolution is pending.   |
+| `UNRESOLVED_DEBIT_TIMEOUT`    | No                          | Keep the transaction on hold and follow the recovery guidance.         |
+| `AUTO_REVERSAL_IN_PROGRESS`   | No                          | Monitor the reversal process.                                          |
+| `DEFINITIVE_FAILURE_NO_DEBIT` | Yes, under the modeled rule | Retry is permitted only with the required definitive failure evidence. |
+| `ANOMALOUS_CONTRADICTION`     | No                          | Hold the transaction because the signals conflict.                     |
+| `INDETERMINATE_SAFEGUARD`     | No                          | Preserve a safe hold when evidence is incomplete or invalid.           |
+
+### Retry-safety invariant
+
+The engine follows a strict rule: **a retry is allowed only when all required evidence supports definitive failure and confirms that no debit occurred.**
+
+The modeled retry authorization requires:
+
+* `remitterDebit === 'NOT_DEBITED'`
+* `npciSwitch === 'FAILED'`
+* `beneficiaryCredit === 'NOT_CREDITED'`
+
+A switch timeout alone does not establish definitive failure. A confirmed debit, unknown debit status, missing evidence, or contradictory signals must not authorize a retry.
+
+The rules are implemented and tested independently of the dashboard, support-case state, and analytics state.
+
+---
+
+## System Architecture
+
+The application uses a layered architecture that separates deterministic recovery logic, synthetic data, state management, and presentation.
+
+```text
 src/
-├── engine/              # Pure TypeScript Recovery Rules Engine (zero UI dependencies)
-│   ├── rules-table.ts   # Deterministic table mapping multi-party states to canonical recovery
-│   ├── recovery-engine.ts # Pure evaluation function: evaluateTransactionRecovery()
-│   ├── types.ts         # Strictly typed canonical states, telemetry signals, guidance schemas
-│   └── regulatory-framework.ts # Official RBI TAT citations & product threshold distinctions
+├── engine/
+│   ├── rules-table.ts
+│   ├── recovery-engine.ts
+│   ├── types.ts
+│   └── regulatory-framework.ts
 │
-├── mock/                # High-fidelity synthetic UPI dataset
-│   └── synthetic-transactions.ts # 10 reproducible transactions covering all edge cases
+├── mock/
+│   ├── synthetic-transactions.ts
+│   └── synthetic-support-cases.ts
 │
-├── context/             # Local state management & in-memory event simulation
-│   ├── TransactionContext.tsx # Transactions ledger, search/filter, simulated switch polling
-│   ├── SupportContext.tsx     # Dispute ticketing lifecycle & state transition validation
-│   └── AnalyticsContext.tsx   # Session telemetry, funnel conversion, and event streams
+├── context/
+│   ├── TransactionContext.tsx
+│   ├── SupportContext.tsx
+│   └── AnalyticsContext.tsx
 │
-├── support/             # Dispute tracking data model & transition validators
-│   ├── types.ts         # Case status machine (OPEN -> UNDER_REVIEW -> RESOLVED -> CLOSED)
-│   ├── case-transitions.ts # Strict transition validation preventing invalid state jumps
-│   └── category-suggestions.ts # Smart issue classification based on transaction state
+├── support/
+│   ├── types.ts
+│   ├── case-transitions.ts
+│   └── category-suggestions.ts
 │
-├── analytics/           # Privacy-sanitized PM instrumentation
-│   ├── types.ts         # Versioned event schemas & metrics definitions
-│   └── tracker.ts       # Local session tracker sanitizing PII (no raw VPAs/names logged)
+├── analytics/
+│   ├── types.ts
+│   └── tracker.ts
 │
-├── components/          # Reusable, accessible UI components
-│   ├── common/          # Navbar, SyntheticBanner, StatusBadges, Modal scaffolding
-│   ├── transactions/    # Overview cards, filter bar, dense financial ledger table
-│   ├── guidance/        # 4-Party clearing rails, recovery card, chronological event log
-│   ├── support/         # Dispute modal, case listing table, activity timeline
-│   └── analytics/       # Metric cards, funnel distribution visualization, event stream
+├── components/
+│   ├── common/
+│   ├── transactions/
+│   ├── guidance/
+│   ├── support/
+│   └── analytics/
 │
-└── app/                 # Next.js 15 App Router pages
-    ├── page.tsx         # Transactions Dashboard
-    ├── tx/[id]/page.tsx # Transaction Detail & 4-Party Telemetry Breakdown
-    ├── support/page.tsx # Dispute Desk Case Listing
-    ├── support/[id]/page.tsx # Dispute Detail & Activity Log
-    └── analytics/page.tsx    # Product Analytics & Funnel Inspector
+└── app/
+    ├── page.tsx
+    ├── tx/[id]/page.tsx
+    ├── support/page.tsx
+    ├── support/[id]/page.tsx
+    └── analytics/page.tsx
 ```
 
----
+### Architecture responsibilities
 
-## 🛡️ Deterministic Rules Engine
+* **Engine:** Evaluates evidence and produces recovery decisions.
+* **Mock data:** Supplies reproducible synthetic transactions and support cases.
+* **Context providers:** Manage in-memory transaction, support, and analytics state.
+* **Support domain:** Validates case lifecycle transitions.
+* **Analytics domain:** Defines versioned events, sanitization, and metric calculations.
+* **UI components:** Present transaction evidence, guidance, support workflows, and analytics.
+* **App Router:** Provides the dashboard and detail pages.
 
-The recovery engine evaluates four independent multi-party evidence signals:
-1. **Remitter Bank:** `DEBITED` | `NOT_DEBITED` | `DEBIT_UNKNOWN`
-2. **NPCI Central Switch:** `SWITCH_SUCCESS` | `SWITCH_FAILURE` | `SWITCH_PENDING` | `SWITCH_UNREACHABLE`
-3. **Beneficiary Bank:** `BENEFICIARY_CREDITED` | `BENEFICIARY_FAILED` | `BENEFICIARY_PENDING` | `BENEFICIARY_UNKNOWN`
-4. **Merchant POS (P2M):** `MERCHANT_CONFIRMED` | `MERCHANT_PENDING` | `MERCHANT_UNKNOWN` | `NOT_APPLICABLE`
+### Application routes
 
-### Canonical Recovery States
-| Canonical State | Retry Safe? | Primary Directive | Action Required |
-|---|:---:|---|---|
-| `DEFINITIVE_SUCCESS` | ❌ No | Payment Settled | Transaction complete; download receipt |
-| `CREDITED_MERCHANT_SYNC_LAG` | ❌ No | DO NOT RETRY | Funds credited to merchant bank; sync in progress |
-| `IN_FLIGHT_SWITCH_ACCEPTED` | ❌ No | DO NOT RETRY | Accepted by NPCI switch; awaiting settlement |
-| `IN_FLIGHT_REMITTER_DEBITED` | ❌ No | DO NOT RETRY | Debited from bank; switch resolution in flight |
-| `UNRESOLVED_DEBIT_TIMEOUT` | ❌ No | DO NOT RETRY | 15-minute resolution cooldown active |
-| `AUTO_REVERSAL_IN_PROGRESS` | ❌ No | DO NOT RETRY | Beneficiary failed; auto-refund initiated |
-| `DEFINITIVE_FAILURE_NO_DEBIT` | ✅ Yes | Safe to Retry | Switch rejected and account not debited |
-| `ANOMALOUS_CONTRADICTION` | ❌ No | DO NOT RETRY | Contradictory telemetry; safe hold enforced |
-| `INDETERMINATE_SAFEGUARD` | ❌ No | DO NOT RETRY | Missing/corrupt signals; conservative fallback |
+| Route           | Purpose                                         |
+| --------------- | ----------------------------------------------- |
+| `/`             | Transaction dashboard                           |
+| `/tx/[id]`      | Transaction details and evidence reconciliation |
+| `/support`      | Support-case listing                            |
+| `/support/[id]` | Support-case details and activity history       |
+| `/analytics`    | Product analytics and event stream              |
 
 ---
 
-## 📜 Regulatory Grounding & Product Thresholds
+## Product Analytics
 
-This project explicitly separates **statutory banking mandates** from **product simulation thresholds**:
+The analytics dashboard provides visibility into how a user interacts with the prototype.
 
-* **RBI Statutory Directive:** Cites RBI circular `RBI/2019-20/67 DPSS.CO.PD No.629/02.01.014/2019-20` (*Harmonisation of Turn Around Time (TAT) and customer compensation for failed transactions*):
-  * **UPI Funds Transfer (P2P/P2M):** Auto-reversal mandated within **T + 1 calendar day**.
-  * **Merchant Transactions (Goods/Services not delivered):** Auto-reversal within **T + 5 calendar days**.
-  * **Compensation Policy:** ₹100 per day penalty for delays beyond mandated TAT.
-* **Product UX Cooldown:** A simulated 15-minute resolution window preventing user panic and support ticket spam. The UI clearly clarifies that this 15-minute window is a UX design threshold, not an RBI law.
+### Instrumented interactions
+
+The event model includes events such as:
+
+* `DASHBOARD_VIEWED`
+* `FILTER_APPLIED`
+* `TRANSACTION_DETAILS_OPENED`
+* `RECOVERY_GUIDANCE_VIEWED`
+* `EVIDENCE_BREAKDOWN_INSPECTED`
+* `SUPPORT_CASE_FLOW_STARTED`
+* `SUPPORT_CASE_CREATED`
+* `SUPPORT_CASE_CANCELLED`
+* `SUPPORT_CASE_STATUS_CHANGED`
+* `TELEMETRY_POLL_TRIGGERED`
+* `TELEMETRY_POLL_COMPLETED`
+* `DEMO_DATA_RESET`
+
+The event stream and associated metrics are designed for inspecting synthetic demo sessions, not measuring real customer behavior.
+
+### Recovery funnel methodology
+
+The funnel distinguishes completed, explicitly cancelled, and unfinished flows.
+
+* **Started:** Support-case creation flows initiated.
+* **Completed:** Support cases created from the tracked flow.
+* **Explicitly cancelled:** Flows explicitly cancelled by the user.
+* **In progress:** Started flows without a recorded terminal outcome.
+
+A flow is not automatically counted as abandoned merely because no support case exists. Rates are unavailable when the denominator is zero.
+
+### Privacy-conscious instrumentation
+
+The analytics tracker sanitizes configured sensitive fields before recording event payloads. It is designed to avoid storing raw VPAs, credentials, or free-text content in the event stream.
+
+This protection is scoped to the prototype's configured event schema and sanitizer. It should not be interpreted as a comprehensive production privacy or security certification.
 
 ---
 
-## 🧪 Comprehensive Test Suite (88/88 Passing)
+## Support Case Management
 
-Built with **Vitest**, covering 21 specialized test files:
+The support workflow models a basic case lifecycle linked to a synthetic transaction.
+
+```text
+OPEN
+  ↓
+UNDER_REVIEW
+  ↓
+RESOLVED
+  ↓
+CLOSED
+```
+
+The lifecycle validator restricts transitions to the modeled valid paths.
+
+The support workflow provides:
+
+* Case creation linked to a transaction.
+* Suggested issue categories based on transaction context.
+* Status tracking and activity history.
+* Validation of case lifecycle transitions.
+* A coordinated demo reset for transaction, support, and analytics state.
+
+A support-case status change does not independently prove that a payment succeeded or failed. It also does not alter the transaction engine's retry-safety decision.
+
+---
+
+## Regulatory Context
+
+The prototype references the Reserve Bank of India's circular on harmonisation of turnaround time and customer compensation for failed transactions:
+
+**Circular:** `RBI/2019-20/67 DPSS.CO.PD No.629/02.01.014/2019-20`
+
+The project distinguishes the regulatory framework from product-specific UX decisions.
+
+* Applicable turnaround-time and compensation requirements depend on the transaction category and the conditions defined by the relevant RBI directions.
+* The prototype models separate P2P/funds-transfer and merchant-payment timelines.
+* The simulated 15-minute resolution cooldown is a product UX threshold, not an RBI-mandated waiting period.
+* The engine does not connect to bank systems or verify compliance with actual payment-network requirements.
+
+For implementation or production use, consult the official circular and any subsequent amendments rather than treating the prototype's guidance as legal or regulatory advice.
+
+---
+
+## Tech Stack
+
+| Area             | Technology                                            |
+| ---------------- | ----------------------------------------------------- |
+| Framework        | Next.js App Router                                    |
+| Language         | TypeScript                                            |
+| UI               | React                                                 |
+| Styling          | Tailwind CSS                                          |
+| Testing          | Vitest                                                |
+| State management | React Context and in-memory state                     |
+| Recovery logic   | Pure TypeScript rules engine                          |
+| Analytics        | Custom event schema, tracker, and metric calculations |
+| Data             | Synthetic fixtures                                    |
+
+---
+
+## Testing and Safety
+
+The reported test suite contains **88 tests across 21 test files**. Rerun the tests on the current commit to verify the present repository state.
 
 ```bash
-# Run unit & integration tests
 npm test
 ```
 
-### Key Test Categories
-* **Safety Invariants:** Verifies `safeToRetryPayment === false` across every state where debit is present, indeterminate, or contradictory.
-* **Malformed Telemetry:** Tests recovery engine robustness against undefined fields, null prototypes, empty objects, and corrupted timestamps.
-* **Contradictory Telemetry:** Verifies that conflicting multi-party signals (e.g., switch failure reported simultaneously with beneficiary credit) trigger immediate safe holds.
-* **State Machine Transitions:** Enforces valid lifecycle transitions for support cases (`OPEN` &rarr; `UNDER_REVIEW` &rarr; `RESOLVED` &rarr; `CLOSED`), preventing invalid jumps or modifications to closed cases.
-* **Reset Integrity:** Confirms that demo resets accurately restore transactions, support disputes, and session analytics.
+The test coverage includes:
+
+* Retry-safety invariants.
+* Timeout and contradictory-evidence handling.
+* Malformed telemetry inputs.
+* Recovery-state transitions.
+* Evidence breakdown and timeline ordering.
+* Support-case lifecycle validation.
+* Analytics schema and metric calculations.
+* Reset behavior across transaction, support, and analytics state.
+
+Run the production build before deploying:
+
+```bash
+npm run build
+```
+
+The passing test suite demonstrates the behavior of the tested synthetic scenarios. It does not establish production readiness for real payment processing.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-* Node.js 18.18+ or 20+
-* npm 9+
 
-### Installation & Local Run
+* Node.js 18.18+ or a compatible supported version.
+* npm 9+.
+
+### Installation
+
+Clone the repository:
+
 ```bash
-# 1. Clone repository
 git clone https://github.com/Saksham3124/payment-status-recovery.git
 cd payment-status-recovery
+```
 
-# 2. Install dependencies
+Install dependencies:
+
+```bash
 npm install
+```
 
-# 3. Run development server
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) in your browser.
+Open http://localhost:3000.
 
-### Production Build
+### Production build
+
 ```bash
-# Compile and build Next.js production bundle
 npm run build
-
-# Start production server locally
 npm start
 ```
 
----
-
-## 🔒 Synthetic Data & Privacy Disclaimer
-
-* **100% Synthetic:** This application runs entirely on simulated mock data (`SYNTH-TX-101` through `SYNTH-TX-110`).
-* **No Real Transactions:** Does not connect to live banking networks, NPCI UPI switch, or merchant payment gateways.
-* **No PII Collected:** Analytics events sanitize VPAs and customer data prior to logging.
+The project uses synthetic, in-memory data and does not require live banking credentials for its current demo functionality.
 
 ---
 
-## 👤 Author
-**Saksham Sharma**
+## Limitations and Scope
+
+This project is a product case study and technical prototype.
+
+* All transactions and payment-participant signals are synthetic.
+* There is no live UPI, NPCI, bank, or merchant-gateway integration.
+* Transaction, support, and analytics state is held in memory and is not a persistent backend.
+* Reloading the application restores the seed demo data.
+* The recovery engine evaluates supplied signals; it cannot independently verify a real account debit or payment settlement.
+* The analytics funnel describes instrumented prototype interactions, not validated customer conversion.
+* The regulatory references provide context and should be checked against current official directions before any real-world implementation.
+
+These limitations are intentional for the current portfolio scope.
+
+---
+
+## Potential Next Steps
+
+Potential extensions, subject to validation and available infrastructure:
+
+* User research on payment uncertainty and recovery comprehension.
+* Usability testing of the recovery guidance and safe-hold states.
+* Persistent storage and authenticated support workflows.
+* Contract-defined integrations with authorized payment-status providers.
+* Accessibility and responsive-interface audits.
+* Expanded analytics with clearly defined measurement plans.
+* Additional automated browser-level end-to-end tests.
+
+These are possible future directions, not features currently claimed as implemented.
+
+---
+
+## Author
+
+**Kumar Saksham**
+
 Product Management Portfolio Case Study
-GitHub: [@Saksham3124](https://github.com/Saksham3124)
+
+* **GitHub:** [@Saksham3124](https://github.com/Saksham3124)
+* **Repository:** [Payment Status Recovery](https://github.com/Saksham3124/payment-status-recovery)
+* **Portfolio:** [kumarsaksham.vercel.app](https://kumarsaksham.vercel.app/)
+
+---
+
+*Payment Status Recovery is an independent portfolio project. It is not affiliated with or endorsed by the Reserve Bank of India, NPCI, any bank, or Mastercard.*
